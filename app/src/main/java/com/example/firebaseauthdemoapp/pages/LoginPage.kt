@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -16,15 +19,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.CredentialManager
 import androidx.navigation.NavController
 import com.example.firebaseauthdemoapp.AuthState
 import com.example.firebaseauthdemoapp.AuthViewModel
+import com.example.firebaseauthdemoapp.R
 
 @Composable
 fun LoginPage(
@@ -42,6 +49,9 @@ fun LoginPage(
 
     val authState = authViewModel.authState.collectAsState()
     val context = LocalContext.current
+
+    val coroutineScope = rememberCoroutineScope()
+    val credentialManager = CredentialManager.create(context)
 
     LaunchedEffect(authState.value) {
         when (authState.value) {
@@ -93,6 +103,18 @@ fun LoginPage(
             navController.navigate("signup")
         }) {
             Text(text = "Don't have an account? Sign up")
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        IconButton(onClick = {
+            authViewModel.handleGoogleSignIn(context, navController)
+        }) {
+            Icon(
+                painter = painterResource(R.drawable.ic_google),
+                contentDescription = "Google Sign In",
+                modifier = Modifier.size(48.dp)
+            )
         }
     }
 }

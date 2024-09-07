@@ -1,9 +1,29 @@
 package com.example.firebaseauthdemoapp
 
+import android.content.Context
+import android.widget.Toast
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.navigation.NavController
+import com.example.firebaseauthdemoapp.model.User
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.security.MessageDigest
+import java.util.UUID
 
 class AuthViewModel: ViewModel() {
     private val auth: FirebaseAuth by lazy {
@@ -12,6 +32,8 @@ class AuthViewModel: ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
     val authState: StateFlow<AuthState> = _authState
+
+    val user = MutableStateFlow<User>(User("", "", "", "", "", ""))
 
     init {
         checkAuthStatus()
@@ -57,6 +79,92 @@ class AuthViewModel: ViewModel() {
                     _authState.value = AuthState.Error(task.exception?.message ?: "An unknown error occurred")
                 }
             }
+    }
+
+    fun handleGoogleSignIn(context: Context, navController: NavController) {
+        viewModelScope.launch {
+            // Collect the result of the Google Sign-In precess
+            googleSignIn(context).collect {result ->
+                result.fold(
+                    onSuccess = { authResult ->
+                        val currentUser = authResult.user
+                        if (currentUser != null) {
+                            user.value = User(currentUser.uid, currentUser.displayName ?: "", currentUser.photoUrl.toString(), currentUser.email!!, "", "")
+                            // Show success message
+                            Toast.makeText(
+                                context,
+                                "Account created successfully!",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            _authState.value = AuthState.Authenticated
+                        }
+                    },
+                    onFailure = { e ->
+                        // Show error message
+                        Toast.makeText(
+                            context,
+                            "Failed to create account: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        _authState.value = AuthState.Error(e.message ?: "An unknown error occurred")
+                    }
+                )
+            }
+        }
+    }
+
+    private suspend fun googleSignIn(context: Context): Flow<Result<AuthResult>> {
+        return callbackFlow {
+            try {
+                // Initialize Credential Manager
+                val credentialManager: CredentialManager = CredentialManager.create(context)
+
+                // Generate a nonce (a random number used once) for security
+                val ranNonce: String = UUID.randomUUID().toString()
+                val bytes: ByteArray = ranNonce.toByteArray()
+                val md: MessageDigest = MessageDigest.getInstance("SHA-256")
+                val digest: ByteArray = md.digest(bytes)
+                val hashedNonce: String = digest.fold("") { str, it -> str + "%02x".format(it) }
+
+                val googleIdOption: GetGoogleIdOption = GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(context.getString(R.string.default_web_client_id))
+                    .setAutoSelectEnabled(true)
+                    .setNonce(hashedNonce)
+                    .build()
+
+                // Create a credential request with the Google ID option
+                val request: GetCredentialRequest = GetCredentialRequest.Builder()
+                    .addCredentialOption(googleIdOption)
+                    .build()
+
+                val result = credentialManager.getCredential(context, request)
+                val credential = result.credential
+
+                // Check if the received credential is valid Google ID Token
+                if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                    // Extract the Google ID Token from the credential
+                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                    // Create an auth credential using the Google ID Token
+                    val authCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
+                    // Sign in with Firebase Auth using the Google Auth Credential
+                    val authResult = auth.signInWithCredential(authCredential).await() // .await() -> allows the coroutine to wait for the result of the authentication operation before proceeding
+                    // Send the successful result to the callback flow
+                    trySend(Result.success(authResult))
+                } else {
+                    throw RuntimeException("Invalid Google ID Token")
+                }
+            } catch (e: GetCredentialCancellationException) {
+                // Handle sign-in cancellation
+                trySend(Result.failure(Exception("Sign-in cancelled")))
+            } catch (e: Exception) {
+                // Handle other exceptions
+                trySend(Result.failure(e))
+            }
+
+            // Close the callback flow
+            awaitClose { /* Do nothing */ }
+        }
     }
 
     fun signout() {

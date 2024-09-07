@@ -8,6 +8,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
@@ -22,6 +23,7 @@ fun HomePage(
     authViewModel: AuthViewModel
 ) {
     val authState = authViewModel.authState.collectAsState()
+    val user by authViewModel.user.collectAsState()
 
     LaunchedEffect(authState.value) {
         when (authState.value) {
@@ -36,7 +38,7 @@ fun HomePage(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(text = "Home Page", fontSize = 32.sp)
-
+        Text(text = user.name, fontSize = 28.sp)
         TextButton(onClick = {
             authViewModel.signout()
         }) {

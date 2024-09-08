@@ -108,7 +108,7 @@ fun LoginPage(
         Spacer(modifier = Modifier.height(8.dp))
         
         IconButton(onClick = {
-            authViewModel.handleGoogleSignIn(context, navController)
+            authViewModel.handleGoogleSignIn(context)
         }) {
             Icon(
                 painter = painterResource(R.drawable.ic_google),

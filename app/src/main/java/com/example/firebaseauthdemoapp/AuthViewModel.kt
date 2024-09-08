@@ -81,7 +81,7 @@ class AuthViewModel: ViewModel() {
             }
     }
 
-    fun handleGoogleSignIn(context: Context, navController: NavController) {
+    fun handleGoogleSignIn(context: Context) {
         viewModelScope.launch {
             // Collect the result of the Google Sign-In precess
             googleSignIn(context).collect {result ->

@@ -50,9 +50,6 @@ fun LoginPage(
     val authState = authViewModel.authState.collectAsState()
     val context = LocalContext.current
 
-    val coroutineScope = rememberCoroutineScope()
-    val credentialManager = CredentialManager.create(context)
-
     LaunchedEffect(authState.value) {
         when (authState.value) {
             is AuthState.Authenticated -> navController.navigate("home")

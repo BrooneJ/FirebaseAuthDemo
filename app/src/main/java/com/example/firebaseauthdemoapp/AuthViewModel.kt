@@ -1,14 +1,15 @@
 package com.example.firebaseauthdemoapp
 
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
+import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.NavController
 import com.example.firebaseauthdemoapp.model.User
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -88,6 +89,7 @@ class AuthViewModel: ViewModel() {
                 result.fold(
                     onSuccess = { authResult ->
                         val currentUser = authResult.user
+                        Log.d("Wow", "Google Sign-In successful: ${currentUser?.providerData}")
                         if (currentUser != null) {
                             user.value = User(currentUser.uid, currentUser.displayName ?: "", currentUser.photoUrl.toString(), currentUser.email!!, "", "")
                             // Show success message
@@ -129,7 +131,7 @@ class AuthViewModel: ViewModel() {
                 val googleIdOption: GetGoogleIdOption = GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(false)
                     .setServerClientId(context.getString(R.string.default_web_client_id))
-                    .setAutoSelectEnabled(true)
+                    .setAutoSelectEnabled(false)
                     .setNonce(hashedNonce)
                     .build()
 
@@ -167,9 +169,31 @@ class AuthViewModel: ViewModel() {
         }
     }
 
-    fun signout() {
+    fun signout(context: Context) {
         auth.signOut()
+        viewModelScope.launch {
+            logout(context)
+        }
         _authState.value = AuthState.Unauthenticated
+    }
+
+    private suspend fun logout(context: Context) {
+        val credentialManager: CredentialManager = CredentialManager.create(context)
+
+        try {
+            credentialManager.clearCredentialState(ClearCredentialStateRequest())
+            Toast.makeText(
+                context,
+                "Signed out successfully",
+                Toast.LENGTH_LONG
+            ).show()
+        } catch (e: Exception) {
+            Toast.makeText(
+                context,
+                "Failed to sign out: ${e.message}",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 }
 

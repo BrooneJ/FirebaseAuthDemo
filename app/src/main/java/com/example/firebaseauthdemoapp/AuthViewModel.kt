@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.firebaseauthdemoapp.model.User
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
@@ -144,6 +145,7 @@ class AuthViewModel: ViewModel() {
 
                 // Check if the received credential is valid Google ID Token
                 if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                    try {
                     // Extract the Google ID Token from the credential
                     val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                     // Create an auth credential using the Google ID Token
@@ -152,6 +154,9 @@ class AuthViewModel: ViewModel() {
                     val authResult = auth.signInWithCredential(authCredential).await() // .await() -> allows the coroutine to wait for the result of the authentication operation before proceeding
                     // Send the successful result to the callback flow
                     trySend(Result.success(authResult))
+                    } catch (e: GoogleIdTokenParsingException) {
+                        Log.e("GoogleSignIn", "Failed to parse Google ID Token", e)
+                    }
                 } else {
                     throw RuntimeException("Invalid Google ID Token")
                 }

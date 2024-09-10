@@ -89,7 +89,6 @@ class AuthViewModel: ViewModel() {
                 result.fold(
                     onSuccess = { authResult ->
                         val currentUser = authResult.user
-                        Log.d("Wow", "Google Sign-In successful: ${currentUser?.providerData}")
                         if (currentUser != null) {
                             user.value = User(currentUser.uid, currentUser.displayName ?: "", currentUser.photoUrl.toString(), currentUser.email!!, "", "")
                             // Show success message
@@ -170,11 +169,22 @@ class AuthViewModel: ViewModel() {
     }
 
     fun signout(context: Context) {
-        auth.signOut()
-        viewModelScope.launch {
-            logout(context)
+        val currentUser = auth.currentUser
+        currentUser?.let { user ->
+            val provider = user.providerData.map { it.providerId }
+            when {
+                provider.contains("google.com") -> {
+                    viewModelScope.launch {
+                        logout(context)
+                    }
+                }
+                else -> {
+                    auth.signOut()
+                }
+            }
         }
         _authState.value = AuthState.Unauthenticated
+        user.value = User("", "", "", "", "", "")
     }
 
     private suspend fun logout(context: Context) {

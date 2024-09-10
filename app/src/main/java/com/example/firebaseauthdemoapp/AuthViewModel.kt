@@ -146,14 +146,14 @@ class AuthViewModel: ViewModel() {
                 // Check if the received credential is valid Google ID Token
                 if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                     try {
-                    // Extract the Google ID Token from the credential
-                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                    // Create an auth credential using the Google ID Token
-                    val authCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
-                    // Sign in with Firebase Auth using the Google Auth Credential
-                    val authResult = auth.signInWithCredential(authCredential).await() // .await() -> allows the coroutine to wait for the result of the authentication operation before proceeding
-                    // Send the successful result to the callback flow
-                    trySend(Result.success(authResult))
+                        // Extract the Google ID Token from the credential
+                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                        // Create an auth credential using the Google ID Token
+                        val authCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
+                        // Sign in with Firebase Auth using the Google Auth Credential
+                        val authResult: AuthResult = auth.signInWithCredential(authCredential).await() // .await() -> allows the coroutine to wait for the result of the authentication operation before proceeding
+                        // Send the successful result to the callback flow
+                        trySend(Result.success(authResult))
                     } catch (e: GoogleIdTokenParsingException) {
                         Log.e("GoogleSignIn", "Failed to parse Google ID Token", e)
                     }

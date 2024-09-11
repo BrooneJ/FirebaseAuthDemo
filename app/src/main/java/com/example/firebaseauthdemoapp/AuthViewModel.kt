@@ -176,9 +176,9 @@ class AuthViewModel: ViewModel() {
     fun signout(context: Context) {
         val currentUser = auth.currentUser
         currentUser?.let { user ->
-            val provider = user.providerData.map { it.providerId }
-            when {
-                provider.contains("google.com") -> {
+            val provider = user.providerId ?: ""
+            when (provider) {
+                "google.com" -> {
                     viewModelScope.launch {
                         logout(context)
                     }

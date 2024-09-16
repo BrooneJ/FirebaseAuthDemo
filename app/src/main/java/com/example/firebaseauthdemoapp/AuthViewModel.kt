@@ -12,8 +12,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.firebaseauthdemoapp.model.User
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
@@ -208,6 +210,60 @@ class AuthViewModel: ViewModel() {
                 "Failed to sign out: ${e.message}",
                 Toast.LENGTH_LONG
             ).show()
+        }
+    }
+
+    suspend fun signInWithGoogle(context: Context) {
+        viewModelScope.launch {
+            try {
+                val authCredentialResult = getGoogleAuthCredentials(context)
+                if (authCredentialResult.isSuccess) {
+                    val authCredential = authCredentialResult.getOrNull()
+                    if (authCredential != null) {
+                        val authResult = auth.signInWithCredential(authCredential).await()
+                        Result.success(authResult.user != null)
+                    } else {
+                        Result.failure(Exception("Failed to get Google Auth Credential"))
+                    }
+                } else {
+                    Result.failure(authCredentialResult.exceptionOrNull()!!)
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }.onSuccess { result ->
+                if (result) {
+                    _authState.value = AuthState.Authenticated
+                } else {
+                    _authState.value = AuthState.Error("Failed to sign in with Google")
+                }
+            }.onFailure { e ->
+                _authState.value = AuthState.Error(e.message ?: "An unknown error occurred")
+            }
+        }
+    }
+
+
+     private suspend fun getGoogleAuthCredentials(context: Context): Result<AuthCredential?> {
+        return try {
+            val credentialManager: CredentialManager = CredentialManager.create(context)
+
+            val nonce = UUID.randomUUID().toString()
+            val signInWithGoogle: GetSignInWithGoogleOption = GetSignInWithGoogleOption
+                .Builder(context.getString(R.string.default_web_client_id))
+                .setNonce(nonce)
+                .build()
+
+            val request: GetCredentialRequest = GetCredentialRequest
+                .Builder()
+                .addCredentialOption(signInWithGoogle)
+                .build()
+            val credential = credentialManager.getCredential(context, request).credential
+            val googleIdToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
+            val authCredential = GoogleAuthProvider.getCredential(googleIdToken, null)
+
+            Result.success(authCredential)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

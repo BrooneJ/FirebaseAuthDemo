@@ -27,11 +27,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.credentials.CredentialManager
 import androidx.navigation.NavController
 import com.example.firebaseauthdemoapp.AuthState
 import com.example.firebaseauthdemoapp.AuthViewModel
 import com.example.firebaseauthdemoapp.R
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginPage(
@@ -49,6 +49,7 @@ fun LoginPage(
 
     val authState = authViewModel.authState.collectAsState()
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(authState.value) {
         when (authState.value) {
@@ -101,11 +102,25 @@ fun LoginPage(
         }) {
             Text(text = "Don't have an account? Sign up")
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         IconButton(onClick = {
             authViewModel.handleGoogleSignIn(context)
+        }) {
+            Icon(
+                painter = painterResource(R.drawable.ic_google),
+                contentDescription = "Google Sign In",
+                modifier = Modifier.size(48.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        IconButton(onClick = {
+            coroutineScope.launch {
+                authViewModel.signInWithGoogle(context)
+            }
         }) {
             Icon(
                 painter = painterResource(R.drawable.ic_google),
